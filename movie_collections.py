@@ -53,5 +53,18 @@ try:
                 )
             ]
         )
+
+    movies = client.collections.get("Movie")
+
+    try:
+        movies.config.add_reference(
+            ReferenceProperty(
+                name="hasSynopsis",
+                target_collection="Synopsis"
+            )
+        )
+    except Exception as e:
+        print("Movie.hasSynopsis may already exist:", e)
+
 finally:
     client.close()

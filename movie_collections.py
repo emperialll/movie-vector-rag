@@ -1,0 +1,23 @@
+import utils
+from weaviate.classes.config import Configure, Property, DataType, ReferenceProperty
+
+client = utils.connect_to_my_db()
+
+try:
+    if not client.collections.exists("Movie"):
+        client.collections.create(
+            "Movie",
+            vector_config=Configure.Vectors.text2vec_openai(),
+            generative_config=Configure.Generative.openai(),
+            properties=[
+                Property(name="title", data_type=DataType.TEXT),
+                Property(name="description", data_type=DataType.TEXT),
+                Property(name="movie_id", data_type=DataType.INT, skip_vectorization=True),
+                Property(name="year", data_type=DataType.INT),
+                Property(name="rating", data_type=DataType.NUMBER),
+                Property(name="director", data_type=DataType.TEXT, skip_vectorization=True),
+            ]
+        )
+finally:
+    client.close()
+    

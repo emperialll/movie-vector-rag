@@ -37,5 +37,21 @@ try:
             ]
         )
 
+    if not client.collections.exists("Synopsis"):
+        client.collections.create(
+            "Synopsis",
+            vector_config=Configure.Vectors.text2vec_openai(),
+            generative_config=Configure.Generative.openai(),
+            properties=[
+                Property(name="synopsis_text", data_type=DataType.TEXT),
+                Property(name="movie_id", data_type=DataType.INT, skip_vectorization=True),
+            ],
+            references=[
+                ReferenceProperty(
+                    name="forMovie",
+                    target_collection="Movie"
+                )
+            ]
+        )
 finally:
     client.close()

@@ -18,6 +18,24 @@ try:
                 Property(name="director", data_type=DataType.TEXT, skip_vectorization=True),
             ]
         )
+
+    if not client.collections.exists("Review"):
+        client.collections.create(
+            "Review",
+            vector_config=Configure.Vectors.text2vec_openai(),
+            generative_config=Configure.Generative.openai(),
+            properties=[
+                Property(name="review_text", data_type=DataType.TEXT),
+                Property(name="review_no", data_type=DataType.INT, skip_vectorization=True),
+                Property(name="movie_id", data_type=DataType.INT, skip_vectorization=True),
+            ],
+            references=[
+                ReferenceProperty(
+                    name="forMovie",
+                    target_collection="Movie"
+                )
+            ]
+        )
+
 finally:
     client.close()
-    

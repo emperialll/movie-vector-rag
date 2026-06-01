@@ -54,6 +54,7 @@ try:
             ]
         )
 
+    # Add the 2nd way relationship from Movie to Synopsis
     movies = client.collections.get("Movie")
 
     try:

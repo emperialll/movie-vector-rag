@@ -1,3 +1,11 @@
+"""
+Create Weaviate Collections for Movie Vector RAG
+
+This script creates the necessary collections in Weaviate
+with proper vector configurations, generative configurations, properties
+and required references.
+"""
+
 import utils
 from weaviate.classes.config import Configure, Property, DataType, ReferenceProperty
 

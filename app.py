@@ -65,3 +65,23 @@ with movie_tab:
 
         with st.expander("See synopsis"):
             st.write("Movie synopsis goes here")
+
+with rec_tab:
+# AI-powered recommendations
+    st.header("Recommend me a movie")
+    search_string = st.text_input(label="Recommend me a ...", value="")
+    occasion = st.text_input(label="In this context ...", value="any occasion")
+
+    # Only do something if the user fills in the search string and the context
+    if len(search_string) > 0 and len(occasion) > 0:
+        st.subheader("Recommendations")
+
+        st.write("Movie ABC is recommended here because..")
+
+        st.subheader("Movies analysed")
+        for i, m in enumerate(["Movie 1...", "Movie 2...", "Movie 3..."]):
+            movie_title = m
+            movie_id = i
+            movie_description = "Movie description here"
+            with st.expander(f"Movie title: {movie_title}, ID: {movie_id}"):
+                st.write(movie_description)

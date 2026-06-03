@@ -42,3 +42,26 @@ with search_tab:
             st.write(f"**Movie rating**: {rating}, **ID**: {movie_id}")
             st.write("**Synopsis**")
             st.write(synopsis[:200] + "...")
+
+with movie_tab:
+# Detailed movie information
+
+    st.header("Movie details")
+    title_input = st.text_input(label="Enter the movie row ID here (0-120)", value="")
+    if len(title_input) > 0:  # Only do something if there is an input
+
+        # Placeholder data
+        title = "Desert Dance"
+        director = "Ahmed Al-Bakri"
+        rating = 4.5
+        movie_id = 18
+        year = 2014
+
+        st.header(title)
+        st.write(f"Director: {director}")
+        st.write(f"Rating: {rating}")
+        st.write(f"Movie ID: {movie_id}")
+        st.write(f"Year: {year}")
+
+        with st.expander("See synopsis"):
+            st.write("Movie synopsis goes here")

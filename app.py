@@ -20,3 +20,25 @@ with search_tab:
 
     with srch_col2:
         value_range = st.slider(label="Rating range", value=(0.0, 5.0), step=0.1)
+
+# Search results - movie summaries
+    st.header("Search results")
+
+    response = [
+        {
+            "title": f"Title {i}",
+            "rating": 4.0,
+            "movie_id": i,
+            "director": f"Director {i}",
+        }
+        for i in range(5)
+    ]  # Placeholder response
+
+    for movie in response:
+        with st.expander(movie["title"]):
+            rating = movie["rating"]
+            movie_id = movie["movie_id"]
+            synopsis = "Synopsis here"
+            st.write(f"**Movie rating**: {rating}, **ID**: {movie_id}")
+            st.write("**Synopsis**")
+            st.write(synopsis[:200] + "...")

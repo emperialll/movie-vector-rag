@@ -31,7 +31,7 @@ with search_tab:
             "movie_id": i,
             "director": f"Director {i}",
         }
-        for i in range(5)
+        for i in range(1, 5)
     ]  # Placeholder response
 
     for movie in response:

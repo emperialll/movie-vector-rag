@@ -30,14 +30,17 @@ try:
             )
 
         with srch_col2:
-            value_range = st.slider(label="Rating range", value=(0.0, 5.0), step=0.1)
+            rating_range = st.slider(label="Rating range", value=(0.0, 5.0), step=0.1)
+            year_range = st.slider(label="Released Year", value=(1950, 2026), step=1)
 
     # Search results - movie summaries
         st.header("Search results")
 
         movie_filter = (
-            wvc.query.Filter.by_property("rating").greater_or_equal(value_range[0])
-            & wvc.query.Filter.by_property("rating").less_or_equal(value_range[1])
+            wvc.query.Filter.by_property("rating").greater_or_equal(rating_range[0])
+            & wvc.query.Filter.by_property("rating").less_or_equal(rating_range[1])
+            & wvc.query.Filter.by_property("year").greater_or_equal(year_range[0])
+            & wvc.query.Filter.by_property("rating").less_or_equal(year_range[1])
         )
 
         synopsis_xref = wvc.query.QueryReference(

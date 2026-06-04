@@ -11,7 +11,24 @@ from weaviate.classes.config import Configure, Property, DataType, ReferenceProp
 
 client = utils.connect_to_my_db()
 
+# Delete any previously created collections with the same name
+client.collections.delete("Movie")
+client.collections.delete("Review")
+client.collections.delete("Synopsis")
+
 try:
+    if not client.collections.exists("Review"):
+        client.collections.create(
+            "Review",
+            vector_config=Configure.Vectors.text2vec_openai(),
+            generative_config=Configure.Generative.openai(),
+            properties=[
+                Property(name="review_text", data_type=DataType.TEXT),
+                Property(name="review_no", data_type=DataType.INT, skip_vectorization=True),
+                Property(name="movie_id", data_type=DataType.INT, skip_vectorization=True),
+            ]
+        )
+
     if not client.collections.exists("Movie"):
         client.collections.create(
             "Movie",
@@ -24,25 +41,13 @@ try:
                 Property(name="year", data_type=DataType.INT),
                 Property(name="rating", data_type=DataType.NUMBER),
                 Property(name="director", data_type=DataType.TEXT, skip_vectorization=True),
-            ]
-        )
-
-    if not client.collections.exists("Review"):
-        client.collections.create(
-            "Review",
-            vector_config=Configure.Vectors.text2vec_openai(),
-            generative_config=Configure.Generative.openai(),
-            properties=[
-                Property(name="review_text", data_type=DataType.TEXT),
-                Property(name="review_no", data_type=DataType.INT, skip_vectorization=True),
-                Property(name="movie_id", data_type=DataType.INT, skip_vectorization=True),
             ],
             references=[
                 ReferenceProperty(
-                    name="forMovie",
-                    target_collection="Movie"
+                    name="hasReview",
+                    target_collection="Review",
                 )
-            ]
+            ],
         )
 
     if not client.collections.exists("Synopsis"):

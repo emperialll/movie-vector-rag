@@ -26,18 +26,22 @@ try:
         with srch_col1:
             search_type = st.radio(
                 label="How do you want to search?",
-                options=["Vector", "Hybrid"]
+                options=["Vector", "Keyword", "Hybrid"]
             )
 
         with srch_col2:
-            value_range = st.slider(label="Rating range", value=(0.0, 5.0), step=0.1)
+            rating_range = st.slider(label="Rating range", value=(0.0, 5.0), step=0.1)
+            year_min = st.number_input(label="Year from", value=1960, step=1)
+            year_max = st.number_input(label="Year to", value=2023, step=1)
 
     # Search results - movie summaries
         st.header("Search results")
 
         movie_filter = (
-            wvc.query.Filter.by_property("rating").greater_or_equal(value_range[0])
-            & wvc.query.Filter.by_property("rating").less_or_equal(value_range[1])
+            wvc.query.Filter.by_property("rating").greater_or_equal(rating_range[0])
+            & wvc.query.Filter.by_property("rating").less_or_equal(rating_range[1])
+            & wvc.query.Filter.by_property("year").greater_or_equal(year_min)
+            & wvc.query.Filter.by_property("year").less_or_equal(year_max)
         )
 
         synopsis_xref = wvc.query.QueryReference(
@@ -47,6 +51,13 @@ try:
         if len(query_string) > 0:
             if search_type == "Vector":
                 response = movies.query.near_text(
+                    query=query_string,
+                    filters=movie_filter,
+                    limit=5,
+                    return_references=[synopsis_xref]
+                )
+            elif search_type == "Keyword":
+                response = movies.query.bm25(
                     query=query_string,
                     filters=movie_filter,
                     limit=5,
@@ -76,35 +87,76 @@ try:
                 st.write(synopsis[:200] + "...")
 
     with movie_tab:
-    # Detailed movie information
+        # Detailed movie information
 
         st.header("Movie details")
-        title_input = st.text_input(label="Enter the movie row ID here (0-120)", value="")
-        if len(title_input) > 0:  # Only do something if there is an input
-            movie_uuid = generate_uuid5(int(title_input))
-            movie = movies.query.fetch_object_by_id(
-                uuid=movie_uuid,
-                return_references=[
-                    wvc.query.QueryReference(
-                    link_on="hasSynopsis", return_properties=["synopsis_text"]
-                    )
-                ]
-            )
-            
-            title = movie.properties["title"]
-            director = movie.properties["director"]
-            rating = movie.properties["rating"]
-            movie_id = movie.properties["movie_id"]
-            year = movie.properties["year"]
+        movie_id_input = st.text_input(label="Enter the movie row ID here", value="")
 
-            st.write(f"ID: {movie_id}")
-            st.write(f"{title} - directed by {director}")
-            st.write(f"Rate: {rating}")
-            st.write(f"Released: {year}")
+        if len(movie_id_input.strip()) > 0:
+            try:
+                movie_id_value = int(movie_id_input.strip())
+            except ValueError:
+                st.error("Please enter a valid numeric movie ID.")
+            else:
+                movie_uuid = generate_uuid5(str(movie_id_value))
 
-            with st.expander(f"See synopsis of {title}"):
-                synopsis = movie.references["hasSynopsis"].objects[0].properties["synopsis_text"]
-                st.write(synopsis)
+                movie = movies.query.fetch_object_by_id(
+                    uuid=movie_uuid,
+                    return_references=[
+                        wvc.query.QueryReference(
+                            link_on="hasSynopsis",
+                            return_properties=["synopsis_text"]
+                        ),
+                        wvc.query.QueryReference(
+                            link_on="hasReview",
+                            return_properties=["review_text", "review_no"]
+                        )
+                    ]
+                )
+
+                if movie is None:
+                    st.warning(f"No movie found with ID {movie_id_value}.")
+                else:
+                    title = movie.properties["title"]
+                    director = movie.properties["director"]
+                    rating = movie.properties["rating"]
+                    movie_id = movie.properties["movie_id"]
+                    year = movie.properties["year"]
+
+                    st.write(f"ID: {movie_id}")
+                    st.write(f"{title} - directed by {director}")
+                    st.write(f"Rate: {rating}")
+                    st.write(f"Released: {year}")
+
+                    # Display synopsis
+                    with st.expander(f"See synopsis of {title}"):
+                        synopsis_refs = movie.references.get("hasSynopsis")
+
+                        if synopsis_refs and len(synopsis_refs.objects) > 0:
+                            synopsis = synopsis_refs.objects[0].properties["synopsis_text"]
+                            st.write(synopsis)
+                        else:
+                            st.info("No synopsis found for this movie.")
+
+                    # Display reviews
+                    st.subheader("Reviews")
+
+                    review_refs = movie.references.get("hasReview")
+
+                    if review_refs and len(review_refs.objects) > 0:
+                        sorted_reviews = sorted(
+                            review_refs.objects,
+                            key=lambda r: r.properties.get("review_no", 0)
+                        )
+
+                        for r in sorted_reviews:
+                            review_no = r.properties.get("review_no", "")
+                            review_text = r.properties.get("review_text", "")
+
+                            st.write(f"**Review {review_no}**")
+                            st.write(review_text)
+                    else:
+                        st.info("No reviews found for this movie.")
 
     with rec_tab:
     # AI-powered recommendations

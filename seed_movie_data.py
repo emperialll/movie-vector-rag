@@ -8,6 +8,7 @@ CSV_PATH = "data/movies_data.csv"
 
 INSERT_MOVIES = True
 
+
 def clean(value):
     return None if pd.isna(value) else value
 
@@ -35,6 +36,7 @@ def insert_many_or_print_errors(collection, objects, label):
     else:
         print(f"Inserted {len(response.uuids)} {label} objects")
 
+
 movies_df = pd.read_csv(CSV_PATH)
 client = utils.connect_to_my_db()
 
@@ -47,12 +49,16 @@ try:
     review_objects = []
     synopsis_objects = []
 
-    review_to_movie_refs = []
+    movie_to_review_refs = []
     synopsis_to_movie_refs = []
     movie_to_synopsis_refs = []
 
     for _, row in movies_df.iterrows():
         movie_id = as_int(row["ID"])
+
+        if movie_id is None:
+            continue
+
         movie_uuid = generate_uuid5(str(movie_id))
         synopsis_uuid = generate_uuid5(f"synopsis-{movie_id}")
 
@@ -77,39 +83,48 @@ try:
 
         # -------------------------
         # Synopsis object
+        # Schema:
+        # Synopsis.forMovie -> Movie
+        # Movie.hasSynopsis -> Synopsis
         # -------------------------
-        synopsis_props = {
-            "synopsis_text": clean(row["Synopsis"]),
-            "movie_id": movie_id,
-        }
+        synopsis_text = clean(row["Synopsis"])
 
-        synopsis_objects.append(
-            DataObject(
-                properties=synopsis_props,
-                uuid=synopsis_uuid,
-            )
-        )
+        if synopsis_text is not None:
+            synopsis_props = {
+                "synopsis_text": synopsis_text,
+                "movie_id": movie_id,
+            }
 
-        # Synopsis -> Movie
-        synopsis_to_movie_refs.append(
-            DataReference(
-                from_uuid=synopsis_uuid,
-                from_property="forMovie",
-                to_uuid=movie_uuid,
+            synopsis_objects.append(
+                DataObject(
+                    properties=synopsis_props,
+                    uuid=synopsis_uuid,
+                )
             )
-        )
 
-        # Movie -> Synopsis
-        movie_to_synopsis_refs.append(
-            DataReference(
-                from_uuid=movie_uuid,
-                from_property="hasSynopsis",
-                to_uuid=synopsis_uuid,
+            # Synopsis -> Movie
+            synopsis_to_movie_refs.append(
+                DataReference(
+                    from_uuid=synopsis_uuid,
+                    from_property="forMovie",
+                    to_uuid=movie_uuid,
+                )
             )
-        )
+
+            # Movie -> Synopsis
+            movie_to_synopsis_refs.append(
+                DataReference(
+                    from_uuid=movie_uuid,
+                    from_property="hasSynopsis",
+                    to_uuid=synopsis_uuid,
+                )
+            )
 
         # -------------------------
-        # Reviews object
+        # Review objects
+        # Schema:
+        # Movie.hasReview -> Review
+        # There is NO Review.forMovie in your new schema.
         # -------------------------
         review_columns = [
             ("Critic Review 1", 1),
@@ -138,28 +153,44 @@ try:
                 )
             )
 
-            # Review -> Movie
-            review_to_movie_refs.append(
+            # Movie -> Review
+            movie_to_review_refs.append(
                 DataReference(
-                    from_uuid=review_uuid,
-                    from_property="forMovie",
-                    to_uuid=movie_uuid,
+                    from_uuid=movie_uuid,
+                    from_property="hasReview",
+                    to_uuid=review_uuid,
                 )
             )
 
+    # -------------------------
+    # Insert objects first
+    # -------------------------
     if INSERT_MOVIES:
         insert_many_or_print_errors(movies, movie_objects, "Movie")
 
     insert_many_or_print_errors(synopses, synopsis_objects, "Synopsis")
     insert_many_or_print_errors(reviews, review_objects, "Review")
 
-    # One-way:
-    reviews.data.reference_add_many(review_to_movie_refs)
+    # -------------------------
+    # Add references after objects exist
+    # -------------------------
 
-    # Two-way:
-    synopses.data.reference_add_many(synopsis_to_movie_refs)
-    movies.data.reference_add_many(movie_to_synopsis_refs)
+    # Movie -> Review
+    if movie_to_review_refs:
+        movies.data.reference_add_many(movie_to_review_refs)
+        print(f"Added {len(movie_to_review_refs)} Movie.hasReview references.")
 
-    print("Finished adding references.")
+    # Synopsis -> Movie
+    if synopsis_to_movie_refs:
+        synopses.data.reference_add_many(synopsis_to_movie_refs)
+        print(f"Added {len(synopsis_to_movie_refs)} Synopsis.forMovie references.")
+
+    # Movie -> Synopsis
+    if movie_to_synopsis_refs:
+        movies.data.reference_add_many(movie_to_synopsis_refs)
+        print(f"Added {len(movie_to_synopsis_refs)} Movie.hasSynopsis references.")
+
+    print("Finished adding objects and references.")
+
 finally:
     client.close()

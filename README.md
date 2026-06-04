@@ -2,7 +2,7 @@
 
 A Streamlit web app for semantic movie search and AI-powered movie recommendations using **Weaviate**, **OpenAI embeddings/generation**, and **Retrieval-Augmented Generation (RAG)**.
 
-The app lets users search a movie dataset with vector or hybrid search, inspect individual movie details, and ask for recommendations based on the type of movie they want and the viewing occasion.
+The app lets users search a movie dataset with vector, keyword, or hybrid search, inspect individual movie details, view critic reviews, and ask for AI-powered recommendations based on the type of movie they want and the viewing occasion.
 
 ---
 
@@ -11,10 +11,10 @@ The app lets users search a movie dataset with vector or hybrid search, inspect 
 The application has three main sections:
 
 1. **Search**  
-   Search movies using vector search or hybrid search, with a rating filter.
+   Search movies using vector search, keyword search, or hybrid search, with rating and release-year filters.
 
 2. **Movie Details**  
-   Look up a movie by its dataset ID and view its title, director, rating, release year, and full synopsis.
+   Look up a movie by its dataset ID and view its title, director, rating, release year, full synopsis, and critic reviews.
 
 3. **Recommend**  
    Ask for a movie recommendation in natural language, such as:
@@ -28,11 +28,15 @@ The application has three main sections:
 ## Features
 
 - Semantic movie search with Weaviate vector search
+- Keyword search with BM25
 - Hybrid search combining semantic and keyword-based matching
 - Rating-based filtering
-- Movie detail lookup by ID
+- Release-year filtering
+- Movie detail lookup by dataset ID
+- Full synopsis display for each movie
+- Critic review display for each movie
 - AI-powered movie recommendations using RAG
-- Cross-references between movies and synopses
+- Cross-references between movies, synopses, and reviews
 - Streamlit UI with separate tabs for search, details, and recommendations
 - Data seeding from a local CSV file
 - Weaviate Cloud connection through environment variables
@@ -58,6 +62,7 @@ movie-vector-rag/
 ├── movie_collections.py    # Creates Weaviate collections and references
 ├── seed_movie_data.py      # Loads movie data into Weaviate
 ├── utils.py                # Weaviate connection helper
+├── requirements.txt        # Python dependencies
 ├── data/
 │   └── movies_data.csv     # Movie dataset
 ├── .env.example            # Example environment variables
@@ -82,6 +87,11 @@ Stores core movie metadata:
 - `rating`
 - `director`
 
+References:
+
+- `Movie -> Synopsis` through `hasSynopsis`
+- `Movie -> Review` through `hasReview`
+
 ### Synopsis
 
 Stores long-form movie synopsis text:
@@ -92,7 +102,6 @@ Stores long-form movie synopsis text:
 References:
 
 - `Synopsis -> Movie` through `forMovie`
-- `Movie -> Synopsis` through `hasSynopsis`
 
 ### Review
 
@@ -102,9 +111,29 @@ Stores critic review snippets:
 - `review_no`
 - `movie_id`
 
-References:
+The `Review` collection does not currently point back to `Movie`. Instead, movies reference their reviews through `Movie.hasReview`.
 
-- `Review -> Movie` through `forMovie`
+---
+
+## Collection Relationships
+
+The current collection relationship structure is:
+
+```text
+Movie
+ ├── hasSynopsis ──> Synopsis
+ └── hasReview ────> Review
+
+Synopsis
+ └── forMovie ─────> Movie
+```
+
+This allows the app to:
+
+- Fetch a movie and its synopsis from the `Movie` collection
+- Fetch a movie and its critic reviews from the `Movie` collection
+- Search synopses for recommendation generation
+- Link retrieved synopses back to their related movies
 
 ---
 
@@ -119,6 +148,7 @@ In this project, RAG happens in the recommendation tab:
 3. Weaviate retrieves the most relevant movie synopses.
 4. Those retrieved synopses are passed to a generative model with a prompt.
 5. The model generates a recommendation based on the retrieved movie data.
+6. The app displays the generated recommendation and the movies that were analyzed.
 
 Simplified flow:
 
@@ -129,6 +159,8 @@ Hybrid search in Weaviate
    ↓
 Retrieve relevant movie synopses
    ↓
+Follow Synopsis.forMovie references
+   ↓
 Send retrieved context to generative model
    ↓
 Generate recommendation
@@ -137,6 +169,42 @@ Display recommendation in Streamlit
 ```
 
 This means the recommendation is grounded in the movies stored in the vector database instead of being only a general response from the language model.
+
+---
+
+## Search Modes
+
+The search tab supports three search modes:
+
+### Vector Search
+
+Uses semantic similarity to find movies related to the meaning of the user query.
+
+Example:
+
+```text
+lonely lighthouse friendship
+```
+
+This can return relevant movies even if the exact words are not present in the movie title or description.
+
+### Keyword Search
+
+Uses BM25 keyword search to find movies matching the query text more directly.
+
+Example:
+
+```text
+penguin comedy
+```
+
+This is useful when the user knows specific words they expect to appear in the movie data.
+
+### Hybrid Search
+
+Combines vector search and keyword search.
+
+This is useful when the user wants both semantic understanding and keyword matching.
 
 ---
 
@@ -167,8 +235,9 @@ venv\Scripts\activate
 
 Install the project dependencies from `requirements.txt`:
 
-````bash
+```bash
 pip install -r requirements.txt
+```
 
 ### 4. Configure environment variables
 
@@ -176,7 +245,7 @@ Copy the example environment file:
 
 ```bash
 cp .env.example .env
-````
+```
 
 Then fill in your credentials:
 
@@ -199,6 +268,12 @@ python movie_collections.py
 ```
 
 This creates the `Movie`, `Synopsis`, and `Review` collections in Weaviate.
+
+The script also creates the required references:
+
+- `Movie.hasSynopsis -> Synopsis`
+- `Movie.hasReview -> Review`
+- `Synopsis.forMovie -> Movie`
 
 ### 2. Seed the movie data
 
@@ -234,14 +309,34 @@ or:
 lonely lighthouse friendship
 ```
 
-Then switch between **Vector** and **Hybrid** search to compare the results.
+Then switch between **Vector**, **Keyword**, and **Hybrid** search to compare the results.
+
+You can also adjust:
+
+- Rating range
+- Minimum release year
+- Maximum release year
+
+### Movie Details
+
+Enter a movie dataset ID to view detailed information about a movie.
+
+The detail page displays:
+
+- Movie ID
+- Title
+- Director
+- Rating
+- Release year
+- Full synopsis
+- Critic reviews
 
 ### Recommendation
 
 Try recommendation prompts such as:
 
 ```text
-Recommend me a lighthearted comedy
+lighthearted comedy
 ```
 
 with context:
@@ -253,7 +348,7 @@ for a relaxing weekend evening
 or:
 
 ```text
-Recommend me an emotional drama
+emotional drama
 ```
 
 with context:
@@ -261,6 +356,8 @@ with context:
 ```text
 for watching alone on a rainy night
 ```
+
+The recommendation tab retrieves relevant synopses, sends them to the generative model, and displays an AI-generated recommendation grounded in the retrieved movie data.
 
 ---
 
@@ -270,9 +367,15 @@ This project demonstrates:
 
 - How to connect a Python app to Weaviate Cloud
 - How to create vectorized collections
+- How to configure OpenAI vectorization in Weaviate
+- How to configure OpenAI generative capabilities in Weaviate
 - How to seed structured and unstructured data into a vector database
 - How to model references between collections
-- How to run vector and hybrid searches
+- How to run vector search
+- How to run BM25 keyword search
+- How to run hybrid search
+- How to filter search results by numeric properties
+- How to fetch referenced objects in Weaviate
 - How to build a Streamlit app on top of a vector database
 - How to use RAG for recommendation generation
 - How retrieved database results can be used as grounding context for an AI response
@@ -284,8 +387,9 @@ This project demonstrates:
 - The recommendation output is generated by an AI model, so the prompt should be kept strict to avoid recommending movies outside the database.
 - The app currently uses a fixed result limit for search and recommendation queries.
 - Movie lookup is based on dataset row ID rather than a user-friendly title search.
+- Reviews are displayed in the movie details page, but they are not yet used directly in the recommendation prompt.
 - There is no authentication layer for the Streamlit app.
-- The project does not currently include automated tests or a `requirements.txt` file.
+- The project does not currently include automated tests.
 
 ---
 
@@ -293,8 +397,10 @@ This project demonstrates:
 
 - Add stricter validation to ensure recommendations only include movies retrieved from Weaviate
 - Add title-based movie detail lookup
-- Add filters for director and release year
+- Add filters for director and genre, if genre data is added
+- Use critic reviews as additional context for recommendations
 - Add review-based recommendation logic
+- Add a comment section for users to leave feedback on movies
 - Add screenshots or a short demo GIF to the README
 - Improve error handling for missing environment variables or unavailable Weaviate connections
 - Add unit tests for data loading and query helper functions
@@ -308,7 +414,10 @@ Through this project, I practiced building a complete vector-database-backed app
 
 - Designing collections and references in Weaviate
 - Loading CSV data into a vector database
-- Running vector and hybrid search queries
+- Running vector, keyword, and hybrid search queries
+- Filtering search results by rating and release year
 - Connecting search results to a Streamlit interface
+- Fetching cross-referenced data from Weaviate
+- Displaying related synopses and reviews in the app
 - Using retrieved context to generate AI-powered recommendations
-- Understanding the difference between normal search, semantic search, and RAG
+- Understanding the difference between normal search, semantic search, keyword search, hybrid search, and RAG

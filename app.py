@@ -26,7 +26,7 @@ try:
         with srch_col1:
             search_type = st.radio(
                 label="How do you want to search?",
-                options=["Vector", "Hybrid"]
+                options=["Vector", "Keyword", "Hybrid"]
             )
 
         with srch_col2:
@@ -49,6 +49,12 @@ try:
                 response = movies.query.near_text(
                     query=query_string,
                     filters=movie_filter,
+                    limit=5,
+                    return_references=[synopsis_xref]
+                )
+            elif search_type == "Keyword":
+                response = movies.query.bm25(
+                    query=query_string,
                     limit=5,
                     return_references=[synopsis_xref]
                 )

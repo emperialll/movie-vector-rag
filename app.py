@@ -31,7 +31,8 @@ try:
 
         with srch_col2:
             rating_range = st.slider(label="Rating range", value=(0.0, 5.0), step=0.1)
-            year_range = st.slider(label="Released Year", value=(1950, 2026), step=1)
+            year_min = st.number_input(label="Year from", value=1960, step=1)
+            year_max = st.number_input(label="Year to", value=2023, step=1)
 
     # Search results - movie summaries
         st.header("Search results")
@@ -39,8 +40,8 @@ try:
         movie_filter = (
             wvc.query.Filter.by_property("rating").greater_or_equal(rating_range[0])
             & wvc.query.Filter.by_property("rating").less_or_equal(rating_range[1])
-            & wvc.query.Filter.by_property("year").greater_or_equal(year_range[0])
-            & wvc.query.Filter.by_property("rating").less_or_equal(year_range[1])
+            & wvc.query.Filter.by_property("year").greater_or_equal(year_min)
+            & wvc.query.Filter.by_property("rating").less_or_equal(year_max)
         )
 
         synopsis_xref = wvc.query.QueryReference(
@@ -58,6 +59,7 @@ try:
             elif search_type == "Keyword":
                 response = movies.query.bm25(
                     query=query_string,
+                    filters=movie_filter,
                     limit=5,
                     return_references=[synopsis_xref]
                 )
